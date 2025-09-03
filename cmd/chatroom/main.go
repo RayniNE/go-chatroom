@@ -1,7 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"github.com/raynine/go-chatroom/chatroom"
+)
 
 func main() {
-	fmt.Println("Hello from cmd/chatroom")
+	chatroom.StartWS()
 }

@@ -1,3 +1,5 @@
+include $(PWD)/.env
+
 build:
 	go build cmd/chatroom/main.go
 run:
