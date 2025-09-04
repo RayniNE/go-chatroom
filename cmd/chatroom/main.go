@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/joho/godotenv"
-	"github.com/raynine/go-chatroom/handlers"
+	"github.com/raynine/go-chatroom/chatroom"
 )
 
 func init() {
@@ -15,5 +15,5 @@ func init() {
 }
 
 func main() {
-	handlers.StartWS()
+	chatroom.Main()
 }
