@@ -1,11 +1,40 @@
 package models
 
-import "time"
+import (
+	"net/http"
+	"time"
+)
 
 type User struct {
 	Id       int    `json:"user_id,omitempty"`
 	Username string `json:"user_user_name,omitempty"`
 	Email    string `json:"user_email,omitempty"`
+	Password string `json:"user_password,omitempty"`
+}
+
+func (u *User) Validate() error {
+	if u.Email == "" {
+		return &CustomError{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid email",
+		}
+	}
+
+	if u.Username == "" {
+		return &CustomError{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid username",
+		}
+	}
+
+	if u.Password == "" {
+		return &CustomError{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid password",
+		}
+	}
+
+	return nil
 }
 
 type Chatroom struct {
