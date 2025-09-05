@@ -1,25 +1,29 @@
 package handlers
 
 import (
-	"database/sql"
 	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"github.com/raynine/go-chatroom/chatbot"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/raynine/go-chatroom/models"
+
 	"github.com/raynine/go-chatroom/repos"
 	"github.com/raynine/go-chatroom/utils"
 )
 
 type Handler struct {
 	repo *repos.ChatRepo
+	hubs map[string]*models.Hub
+	ch   *amqp.Channel
 }
 
-func NewHandler(db *sql.DB) *Handler {
+func NewHandler(repo *repos.ChatRepo, ch *amqp.Channel, hubs map[string]*models.Hub) *Handler {
 	return &Handler{
-		repo: repos.NewChatRepo(db),
+		repo: repo,
+		hubs: hubs,
+		ch:   ch,
 	}
 }
 
@@ -27,8 +31,6 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 }
-
-var hubs = make(map[string]*models.Hub)
 
 func (handler *Handler) GetAllChatrooms(w http.ResponseWriter, r *http.Request) {
 	response, err := handler.repo.GetAllChatRooms()
@@ -82,16 +84,11 @@ func (handler *Handler) ConnectToChatroomWS(w http.ResponseWriter, r *http.Reque
 
 	hub := &models.Hub{}
 
-	hub, ok = hubs[id]
+	hub, ok = handler.hubs[id]
 	if !ok {
-		botMessageChannel := make(chan *models.ChatMessage)
-
-		hub = models.NewHub(id, handler.repo, botMessageChannel)
-		hubs[id] = hub
+		hub = models.NewHub(id, handler.repo)
+		handler.hubs[id] = hub
 		go hub.Run()
-
-		chatbot := chatbot.NewChatBot(botMessageChannel, hub)
-		go chatbot.StartBot()
 	}
 
 	userId, userName, err := utils.GetUserDataFromContext(r.Context())
@@ -105,6 +102,7 @@ func (handler *Handler) ConnectToChatroomWS(w http.ResponseWriter, r *http.Reque
 		UserName: userName,
 		Hub:      hub,
 		Conn:     conn,
+		Ch:       handler.ch,
 		Send:     make(chan *models.ChatMessage),
 	}
 

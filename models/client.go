@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"log"
+	"strings"
 	"time"
+
+	amqp "github.com/rabbitmq/amqp091-go"
 
 	"github.com/gorilla/websocket"
 )
@@ -15,6 +18,7 @@ type Client struct {
 	Hub      *Hub
 	Conn     *websocket.Conn
 	Send     chan *ChatMessage
+	Ch       *amqp.Channel
 }
 
 const (
@@ -66,13 +70,27 @@ func (c *Client) ReadPump() {
 			CreatedAt:  time.Now(),
 		}
 
-		_, err = c.Hub.repo.AddMessage(*chatMessage)
-		if err != nil {
-			log.Printf("An error ocurred while trying to save message from WS: %s\n", err.Error())
-			break
+		isCommand := strings.HasPrefix(userMessage, "/stock=")
+
+		if !isCommand {
+			_, err = c.Hub.repo.AddMessage(*chatMessage)
+			if err != nil {
+				log.Printf("An error ocurred while trying to save message from WS: %s\n", err.Error())
+				break
+			}
 		}
 
-		c.Hub.ChatBotMessageChan <- chatMessage
+		c.Hub.Broadcast <- chatMessage
+
+		log.Println("Received message:", chatMessage)
+
+		if isCommand {
+			body, _ := json.Marshal(&chatMessage)
+			err = c.Ch.Publish("", "stock_requests", false, false, amqp.Publishing{ContentType: "application/json", Body: body})
+			if err != nil {
+				log.Printf("Error while publishing to stock_requests: %s", err.Error())
+			}
+		}
 	}
 }
 

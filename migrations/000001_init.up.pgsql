@@ -21,6 +21,6 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 INSERT INTO public.chatrooms(id, name) VALUES (default, 'Super Chatroom');
-INSERT INTO public.users(id, name) VALUES (default, 'stockbot');
+INSERT INTO public.users(id, username, email, password) VALUES (default, 'stockbot', 'stockbot@bot.com', '123123');
 
 COMMIT;
