@@ -2,6 +2,7 @@ package models
 
 import (
 	"bytes"
+	"encoding/json"
 	"log"
 	"time"
 
@@ -9,10 +10,11 @@ import (
 )
 
 type Client struct {
-	Id   string
-	Hub  *Hub
-	Conn *websocket.Conn
-	Send chan []byte
+	Id       int
+	UserName string
+	Hub      *Hub
+	Conn     *websocket.Conn
+	Send     chan *ChatMessage
 }
 
 const (
@@ -30,11 +32,6 @@ var (
 	newline = []byte{'\n'}
 	space   = []byte{' '}
 )
-
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
 
 func (c *Client) ReadPump() {
 	defer func() {
@@ -60,7 +57,22 @@ func (c *Client) ReadPump() {
 		}
 
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		c.Hub.Broadcast <- message
+		userMessage := string(message)
+
+		chatMessage := &ChatMessage{
+			Message:    userMessage,
+			UserID:     c.Id,
+			ChatroomID: c.Hub.ChatroomId,
+			CreatedAt:  time.Now(),
+		}
+
+		_, err = c.Hub.repo.AddMessage(*chatMessage)
+		if err != nil {
+			log.Printf("An error ocurred while trying to save message from WS: %s\n", err.Error())
+			break
+		}
+
+		c.Hub.Broadcast <- chatMessage
 	}
 }
 
@@ -86,12 +98,26 @@ func (c *Client) WritePump() {
 				return
 			}
 
-			w.Write(message)
+			messageBytes, err := json.Marshal(message)
+			if err != nil {
+				log.Printf("An error ocurred while encoding user message: %s\n", err.Error())
+				return
+			}
+
+			w.Write(messageBytes)
 
 			n := len(c.Send)
 			for range n {
 				w.Write(newline)
-				w.Write(<-c.Send)
+
+				nextMessage := <-c.Send
+				messageBytes, err := json.Marshal(nextMessage)
+				if err != nil {
+					log.Printf("An error ocurred while encoding user message: %s\n", err.Error())
+					return
+				}
+
+				w.Write(messageBytes)
 			}
 
 			err = w.Close()

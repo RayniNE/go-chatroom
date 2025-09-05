@@ -6,19 +6,23 @@ import (
 )
 
 type Hub struct {
-	mu sync.RWMutex
+	repo       ChatRepository
+	ChatroomId string
+	mu         sync.RWMutex
 
 	Clients map[*Client]bool
 
-	Broadcast  chan []byte
+	Broadcast  chan *ChatMessage
 	Register   chan *Client
 	Unregister chan *Client
 }
 
-func NewHub() *Hub {
+func NewHub(chatroomId string, repo ChatRepository) *Hub {
 	return &Hub{
 		mu:         sync.RWMutex{},
-		Broadcast:  make(chan []byte),
+		repo:       repo,
+		ChatroomId: chatroomId,
+		Broadcast:  make(chan *ChatMessage),
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
 		Clients:    make(map[*Client]bool),
@@ -29,10 +33,23 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.Register:
-			log.Printf("New client registered: %s", client.Id)
+			log.Printf("New client registered: %s", client.UserName)
 			h.mu.Lock()
 			h.Clients[client] = true
 			h.mu.Unlock()
+
+			chatMessages, err := h.repo.GetChatroomMessages(h.ChatroomId)
+			if err != nil {
+				log.Println("An error ocurred while getting chatroom messages:", err.Error())
+				delete(h.Clients, client)
+				close(client.Send)
+				client.Conn.Close()
+			}
+
+			for _, chatMessage := range chatMessages {
+				client.Send <- chatMessage
+			}
+
 		case client := <-h.Unregister:
 			h.mu.Lock()
 			_, ok := h.Clients[client]

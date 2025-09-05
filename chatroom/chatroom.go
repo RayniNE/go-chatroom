@@ -2,7 +2,7 @@ package chatroom
 
 import (
 	"database/sql"
-	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -11,18 +11,18 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/raynine/go-chatroom/chatroom/handlers"
+	"github.com/raynine/go-chatroom/utils"
 )
 
-var PORT = flag.String("port", ":8080", "HTTP Service port address")
+type ChatroomService struct {
+	DB_URL string
+	PORT   string
+}
 
-func Main() {
-	flag.Parse()
-
+func (s *ChatroomService) Main() {
 	r := mux.NewRouter()
 
-	connectionString := os.Getenv("DATABASE_URL")
-
-	db, err := sql.Open("postgres", connectionString)
+	db, err := sql.Open("postgres", s.DB_URL)
 	if err != nil {
 		log.Fatalf("unable to create database connection: %s", err.Error())
 	}
@@ -33,12 +33,22 @@ func Main() {
 
 	handler := handlers.NewHandler(db)
 
-	r.HandleFunc("/chatrooms", handler.GetAllChatrooms).Methods("GET")
-	r.HandleFunc("/ws/chatroom/{id}", handler.ConnectToChatroomWS)
+	r.HandleFunc("/user/", handler.AddUser).Methods("POST")
+	r.HandleFunc("/login", handler.LoginUser).Methods("POST")
 
-	log.Printf("Starting server in PORT %s", *PORT)
-	err = http.ListenAndServe(*PORT, muxhandlers.CombinedLoggingHandler(os.Stdout, r))
+	s.protectedEndpoints(r, handler)
+
+	log.Printf("Starting server in PORT %s", s.PORT)
+	err = http.ListenAndServe(fmt.Sprintf(":%s", s.PORT), muxhandlers.CombinedLoggingHandler(os.Stdout, r))
 	if err != nil {
 		log.Fatalf("An error ocurred while starting server: %s\n", err.Error())
 	}
+}
+
+func (service *ChatroomService) protectedEndpoints(router *mux.Router, handler *handlers.Handler) {
+	subRouter := router.PathPrefix("/").Subrouter()
+	subRouter.Use(utils.AuthMiddleware)
+
+	subRouter.HandleFunc("/chatrooms", handler.GetAllChatrooms).Methods("GET")
+	subRouter.HandleFunc("/ws/chatroom/{id}", handler.ConnectToChatroomWS)
 }

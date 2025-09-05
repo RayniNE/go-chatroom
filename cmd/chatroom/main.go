@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/joho/godotenv"
 	"github.com/raynine/go-chatroom/chatroom"
@@ -15,5 +16,13 @@ func init() {
 }
 
 func main() {
-	chatroom.Main()
+	dbUrl := os.Getenv("DATABASE_URL")
+	port := os.Getenv("PORT")
+
+	service := chatroom.ChatroomService{
+		DB_URL: dbUrl,
+		PORT:   port,
+	}
+
+	service.Main()
 }

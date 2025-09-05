@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net/http"
+	"net/mail"
 
 	"github.com/raynine/go-chatroom/models"
 )
@@ -54,10 +56,55 @@ func (repo *ChatRepo) FindUserByEmail(email string) (*models.User, error) {
 	return user, nil
 }
 
+func (repo *ChatRepo) checkIfEmailOrUsernameExists(email, username string) (bool, error) {
+	query := "SELECT EXISTS(SELECT 1 FROM public.users WHERE LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($2))"
+
+	exists := false
+
+	err := repo.db.QueryRow(query, email, username).Scan(&exists)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+
+		log.Printf("An error ocurred while searching for email ID %s: %s", email, err.Error())
+		return false, fmt.Errorf("error while searching for user")
+	}
+
+	return exists, nil
+}
+
+func (repo *ChatRepo) GetUserByEmail(email string) (*models.User, error) {
+	appContext := "ChatRepo.GetUserByEmail"
+	query := "SELECT * FROM public.users WHERE LOWER(email) = LOWER($1)"
+
+	user := &models.User{}
+
+	err := repo.db.QueryRow(query, email).Scan(&user.Id, &user.Username, &user.Email, &user.Password)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, &models.CustomError{
+				Message:    fmt.Sprintf("User with email: %s does not exists", user.Email),
+				Code:       http.StatusNotFound,
+				AppContext: appContext,
+			}
+		}
+
+		log.Printf("An error ocurred while searching for email ID %s: %s", email, err.Error())
+		return nil, &models.CustomError{
+			Message:    fmt.Sprintf("Error while searching for user: %s", user.Email),
+			Code:       http.StatusInternalServerError,
+			AppContext: appContext,
+		}
+	}
+
+	return user, nil
+}
+
 func (repo *ChatRepo) AddMessage(chatMessage models.ChatMessage) (*int, error) {
 	query := `
 			INSERT INTO 
-				public.users(id, user_id, chatroom_id, message, created_at)
+				public.messages(id, user_id, chatroom_id, message, created_at)
 			VALUES (default, $1, $2, $3, CURRENT_TIMESTAMP) returning id
 		`
 
@@ -86,11 +133,32 @@ func (repo *ChatRepo) AddMessage(chatMessage models.ChatMessage) (*int, error) {
 	return newId, nil
 }
 
-func (repo *ChatRepo) AddUser(user models.User) (*int, error) {
+func (repo *ChatRepo) AddUser(user *models.User) (*int, error) {
+
+	err := user.Validate(false)
+	if err != nil {
+		log.Println(err.Error())
+		return nil, err
+	}
+
+	_, err = mail.ParseAddress(user.Email)
+	if err != nil {
+		return nil, fmt.Errorf("invalid email: %s", user.Email)
+	}
+
+	exists, err := repo.checkIfEmailOrUsernameExists(user.Email, user.Username)
+	if err != nil {
+		return nil, err
+	}
+
+	if exists {
+		return nil, fmt.Errorf("email: %s or username: %s is already registered", user.Email, user.Username)
+	}
+
 	query := `
 			INSERT INTO 
-				public.users(id, username, email)
-			VALUES (default, $1, $2) returning id
+				public.users(id, username, email, password)
+			VALUES (default, $1, $2, $3) returning id
 		`
 
 	var newId *int
@@ -103,7 +171,7 @@ func (repo *ChatRepo) AddUser(user models.User) (*int, error) {
 
 	defer tx.Rollback()
 
-	err = repo.db.QueryRow(query, user.Username, user.Email).Scan(&newId)
+	err = repo.db.QueryRow(query, user.Username, user.Email, user.Password).Scan(&newId)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -154,16 +222,19 @@ func (repo *ChatRepo) GetAllChatRooms() ([]*models.Chatroom, error) {
 	return response, nil
 }
 
-func (repo *ChatRepo) GetChatroomMessages() ([]*models.ChatMessage, error) {
+func (repo *ChatRepo) GetChatroomMessages(chatroomId string) ([]*models.ChatMessage, error) {
 	query := `
-			SELECT * FROM
-				public.messages
+			SELECT messages.*,
+			users.username
+				 FROM
+			public.messages
+			INNER JOIN public.users ON users.id = messages.user_id
 			WHERE chatroom_id = $1
-			ORDER BY created_at DESC
+			ORDER BY created_at ASC
 			LIMIT 50
 	`
 
-	rows, err := repo.db.Query(query)
+	rows, err := repo.db.Query(query, chatroomId)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -184,6 +255,7 @@ func (repo *ChatRepo) GetChatroomMessages() ([]*models.ChatMessage, error) {
 			&message.ChatroomID,
 			&message.Message,
 			&message.CreatedAt,
+			&message.UserName,
 		)
 		if err != nil {
 			log.Printf("An error ocurred while getting scanning chatroom messages: %s", err.Error())

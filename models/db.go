@@ -12,25 +12,31 @@ type User struct {
 	Password string `json:"user_password,omitempty"`
 }
 
-func (u *User) Validate() error {
+func (u *User) Validate(isLogin bool) error {
+	appContext := "User.Validate"
 	if u.Email == "" {
 		return &CustomError{
-			Code:    http.StatusBadRequest,
-			Message: "Invalid email",
+			Code:       http.StatusBadRequest,
+			Message:    "Invalid email",
+			AppContext: appContext,
 		}
 	}
 
-	if u.Username == "" {
-		return &CustomError{
-			Code:    http.StatusBadRequest,
-			Message: "Invalid username",
+	if !isLogin {
+		if u.Username == "" {
+			return &CustomError{
+				Code:       http.StatusBadRequest,
+				Message:    "Invalid username",
+				AppContext: appContext,
+			}
 		}
 	}
 
 	if u.Password == "" {
 		return &CustomError{
-			Code:    http.StatusBadRequest,
-			Message: "Invalid password",
+			Code:       http.StatusBadRequest,
+			Message:    "Invalid password",
+			AppContext: appContext,
 		}
 	}
 
@@ -45,7 +51,18 @@ type Chatroom struct {
 type ChatMessage struct {
 	Id         int       `json:"chat_message_id,omitempty"`
 	UserID     int       `json:"chat_message_user_id,omitempty"`
-	ChatroomID int       `json:"chat_message_chatroom_id,omitempty"`
+	ChatroomID string    `json:"chat_message_chatroom_id,omitempty"`
 	Message    string    `json:"chat_message_message,omitempty"`
 	CreatedAt  time.Time `json:"chat_message_created_at,omitempty"`
+	UserName   string    `json:"chat_message_users_user_name,omitempty"`
+}
+
+type ChatRepository interface {
+	GetChatroomByID(string) (*Chatroom, error)
+	FindUserByEmail(string) (*User, error)
+	GetUserByEmail(string) (*User, error)
+	AddMessage(ChatMessage) (*int, error)
+	AddUser(*User) (*int, error)
+	GetAllChatRooms() ([]*Chatroom, error)
+	GetChatroomMessages(string) ([]*ChatMessage, error)
 }
