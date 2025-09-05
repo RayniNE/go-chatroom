@@ -12,20 +12,22 @@ type Hub struct {
 
 	Clients map[*Client]bool
 
-	Broadcast  chan *ChatMessage
-	Register   chan *Client
-	Unregister chan *Client
+	ChatBotMessageChan chan *ChatMessage
+	Broadcast          chan *ChatMessage
+	Register           chan *Client
+	Unregister         chan *Client
 }
 
-func NewHub(chatroomId string, repo ChatRepository) *Hub {
+func NewHub(chatroomId string, repo ChatRepository, botMessageChannel chan *ChatMessage) *Hub {
 	return &Hub{
-		mu:         sync.RWMutex{},
-		repo:       repo,
-		ChatroomId: chatroomId,
-		Broadcast:  make(chan *ChatMessage),
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
-		Clients:    make(map[*Client]bool),
+		mu:                 sync.RWMutex{},
+		repo:               repo,
+		ChatroomId:         chatroomId,
+		ChatBotMessageChan: botMessageChannel,
+		Broadcast:          make(chan *ChatMessage),
+		Register:           make(chan *Client),
+		Unregister:         make(chan *Client),
+		Clients:            make(map[*Client]bool),
 	}
 }
 

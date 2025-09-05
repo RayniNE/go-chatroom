@@ -72,7 +72,7 @@ func (c *Client) ReadPump() {
 			break
 		}
 
-		c.Hub.Broadcast <- chatMessage
+		c.Hub.ChatBotMessageChan <- chatMessage
 	}
 }
 

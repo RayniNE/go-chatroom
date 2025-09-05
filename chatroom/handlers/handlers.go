@@ -7,6 +7,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/raynine/go-chatroom/chatbot"
 	"github.com/raynine/go-chatroom/models"
 	"github.com/raynine/go-chatroom/repos"
 	"github.com/raynine/go-chatroom/utils"
@@ -83,9 +84,14 @@ func (handler *Handler) ConnectToChatroomWS(w http.ResponseWriter, r *http.Reque
 
 	hub, ok = hubs[id]
 	if !ok {
-		hub = models.NewHub(id, handler.repo)
+		botMessageChannel := make(chan *models.ChatMessage)
+
+		hub = models.NewHub(id, handler.repo, botMessageChannel)
 		hubs[id] = hub
 		go hub.Run()
+
+		chatbot := chatbot.NewChatBot(botMessageChannel, hub)
+		go chatbot.StartBot()
 	}
 
 	userId, userName, err := utils.GetUserDataFromContext(r.Context())
