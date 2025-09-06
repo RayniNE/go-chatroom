@@ -20,12 +20,41 @@ func NewChatRepo(db *sql.DB) *ChatRepo {
 	}
 }
 
-func (repo *ChatRepo) GetChatroomByID(id string) (*models.Chatroom, error) {
-	query := "SELECT * FROM public.chatrooms WHERE id = $1"
+const (
+	getChatroomByIDQuery              = "SELECT * FROM public.chatrooms WHERE id = $1"
+	findUserByEmailQuery              = "SELECT * FROM public.users WHERE LOWER(email) = LOWER($1)"
+	checkIfEmailOrUsernameExistsQuery = "SELECT EXISTS(SELECT 1 FROM public.users WHERE LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($2))"
+	GetUserByEmailQuery               = "SELECT * FROM public.users WHERE LOWER(email) = LOWER($1)"
+	addMessageQuery                   = `
+			INSERT INTO 
+				public.messages(id, user_id, chatroom_id, message, created_at)
+			VALUES (default, $1, $2, $3, CURRENT_TIMESTAMP) returning id
+		`
+	addUserQuery = `
+			INSERT INTO 
+				public.users(id, username, email, password)
+			VALUES (default, $1, $2, $3) returning id
+		`
+	getAllChatRoomsQuery = `
+			SELECT * FROM
+				public.chatrooms
+	`
+	getChatroomMessagesQuery = `
+			SELECT messages.*,
+			users.username
+				 FROM
+			public.messages
+			INNER JOIN public.users ON users.id = messages.user_id
+			WHERE chatroom_id = $1
+			ORDER BY created_at ASC
+			LIMIT 50
+	`
+)
 
+func (repo *ChatRepo) GetChatroomByID(id string) (*models.Chatroom, error) {
 	chatroom := &models.Chatroom{}
 
-	err := repo.db.QueryRow(query, id).Scan(&chatroom.Id, &chatroom.Name)
+	err := repo.db.QueryRow(getChatroomByIDQuery, id).Scan(&chatroom.Id, &chatroom.Name)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -39,11 +68,9 @@ func (repo *ChatRepo) GetChatroomByID(id string) (*models.Chatroom, error) {
 }
 
 func (repo *ChatRepo) FindUserByEmail(email string) (*models.User, error) {
-	query := "SELECT * FROM public.users WHERE LOWER(email) = LOWER($1)"
-
 	user := &models.User{}
 
-	err := repo.db.QueryRow(query, email).Scan(&user.Id, &user.Username, &user.Email)
+	err := repo.db.QueryRow(findUserByEmailQuery, email).Scan(&user.Id, &user.Username, &user.Email, &user.Password)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -57,11 +84,9 @@ func (repo *ChatRepo) FindUserByEmail(email string) (*models.User, error) {
 }
 
 func (repo *ChatRepo) checkIfEmailOrUsernameExists(email, username string) (bool, error) {
-	query := "SELECT EXISTS(SELECT 1 FROM public.users WHERE LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($2))"
-
 	exists := false
 
-	err := repo.db.QueryRow(query, email, username).Scan(&exists)
+	err := repo.db.QueryRow(checkIfEmailOrUsernameExistsQuery, email, username).Scan(&exists)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return false, nil
@@ -76,15 +101,13 @@ func (repo *ChatRepo) checkIfEmailOrUsernameExists(email, username string) (bool
 
 func (repo *ChatRepo) GetUserByEmail(email string) (*models.User, error) {
 	appContext := "ChatRepo.GetUserByEmail"
-	query := "SELECT * FROM public.users WHERE LOWER(email) = LOWER($1)"
-
 	user := &models.User{}
 
-	err := repo.db.QueryRow(query, email).Scan(&user.Id, &user.Username, &user.Email, &user.Password)
+	err := repo.db.QueryRow(GetUserByEmailQuery, email).Scan(&user.Id, &user.Username, &user.Email, &user.Password)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, &models.CustomError{
-				Message:    fmt.Sprintf("User with email: %s does not exists", user.Email),
+				Message:    fmt.Sprintf("User with email: %s does not exists", email),
 				Code:       http.StatusNotFound,
 				AppContext: appContext,
 			}
@@ -92,7 +115,7 @@ func (repo *ChatRepo) GetUserByEmail(email string) (*models.User, error) {
 
 		log.Printf("An error ocurred while searching for email ID %s: %s", email, err.Error())
 		return nil, &models.CustomError{
-			Message:    fmt.Sprintf("Error while searching for user: %s", user.Email),
+			Message:    fmt.Sprintf("Error while searching for user: %s", email),
 			Code:       http.StatusInternalServerError,
 			AppContext: appContext,
 		}
@@ -102,12 +125,6 @@ func (repo *ChatRepo) GetUserByEmail(email string) (*models.User, error) {
 }
 
 func (repo *ChatRepo) AddMessage(chatMessage models.ChatMessage) (*int, error) {
-	query := `
-			INSERT INTO 
-				public.messages(id, user_id, chatroom_id, message, created_at)
-			VALUES (default, $1, $2, $3, CURRENT_TIMESTAMP) returning id
-		`
-
 	var newId *int
 
 	tx, err := repo.db.Begin()
@@ -118,12 +135,8 @@ func (repo *ChatRepo) AddMessage(chatMessage models.ChatMessage) (*int, error) {
 
 	defer tx.Rollback()
 
-	err = repo.db.QueryRow(query, chatMessage.UserID, chatMessage.ChatroomID, chatMessage.Message).Scan(&newId)
+	err = repo.db.QueryRow(addMessageQuery, chatMessage.UserID, chatMessage.ChatroomID, chatMessage.Message).Scan(&newId)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-
 		log.Printf("An error ocurred while inserting message: %s", err.Error())
 		return nil, fmt.Errorf("error while inserting message")
 	}
@@ -155,12 +168,6 @@ func (repo *ChatRepo) AddUser(user *models.User) (*int, error) {
 		return nil, fmt.Errorf("email: %s or username: %s is already registered", user.Email, user.Username)
 	}
 
-	query := `
-			INSERT INTO 
-				public.users(id, username, email, password)
-			VALUES (default, $1, $2, $3) returning id
-		`
-
 	var newId *int
 
 	tx, err := repo.db.Begin()
@@ -171,7 +178,7 @@ func (repo *ChatRepo) AddUser(user *models.User) (*int, error) {
 
 	defer tx.Rollback()
 
-	err = repo.db.QueryRow(query, user.Username, user.Email, user.Password).Scan(&newId)
+	err = repo.db.QueryRow(addUserQuery, user.Username, user.Email, user.Password).Scan(&newId)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -187,12 +194,7 @@ func (repo *ChatRepo) AddUser(user *models.User) (*int, error) {
 }
 
 func (repo *ChatRepo) GetAllChatRooms() ([]*models.Chatroom, error) {
-	query := `
-			SELECT * FROM
-				public.chatrooms
-	`
-
-	rows, err := repo.db.Query(query)
+	rows, err := repo.db.Query(getAllChatRoomsQuery)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -223,18 +225,7 @@ func (repo *ChatRepo) GetAllChatRooms() ([]*models.Chatroom, error) {
 }
 
 func (repo *ChatRepo) GetChatroomMessages(chatroomId string) ([]*models.ChatMessage, error) {
-	query := `
-			SELECT messages.*,
-			users.username
-				 FROM
-			public.messages
-			INNER JOIN public.users ON users.id = messages.user_id
-			WHERE chatroom_id = $1
-			ORDER BY created_at ASC
-			LIMIT 50
-	`
-
-	rows, err := repo.db.Query(query, chatroomId)
+	rows, err := repo.db.Query(getChatroomMessagesQuery, chatroomId)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil

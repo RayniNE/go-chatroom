@@ -10,3 +10,5 @@ migration_down:
 	@migrate -path migrations -database "$(DATABASE_URL)" down
 migration_drop:
 	@migrate -path migrations -database "$(DATABASE_URL)" drop -f
+run_test:
+	@go test -count=1 -cover ./...
