@@ -69,7 +69,9 @@ func (repo *ChatRepo) AddChatroom(chatroom *models.Chatroom) (*string, error) {
 	tx, err := repo.db.Begin()
 	if err != nil {
 		log.Printf("An error ocurred while starting transaction: %s", err.Error())
-		return nil, fmt.Errorf("error while creating chatroom")
+		return nil, &models.CustomError{
+			Message: "error while creating chatroom",
+		}
 	}
 
 	defer tx.Rollback()
@@ -77,7 +79,9 @@ func (repo *ChatRepo) AddChatroom(chatroom *models.Chatroom) (*string, error) {
 	err = repo.db.QueryRow(addChatroomQuery, chatroom.Name).Scan(&newId)
 	if err != nil {
 		log.Printf("An error ocurred while creating chatroom: %s", err.Error())
-		return nil, fmt.Errorf("error while creating chatroom")
+		return nil, &models.CustomError{
+			Message: "error while creating chatroom",
+		}
 	}
 
 	tx.Commit()
@@ -95,7 +99,9 @@ func (repo *ChatRepo) GetChatroomByID(id string) (*models.Chatroom, error) {
 		}
 
 		log.Printf("An error ocurred while searching for chatroom with ID %s: %s", id, err.Error())
-		return nil, fmt.Errorf("error while searching for chatroom")
+		return nil, &models.CustomError{
+			Message: "error while searching for chatroom",
+		}
 	}
 
 	return chatroom, nil
@@ -111,7 +117,10 @@ func (repo *ChatRepo) FindUserByEmail(email string) (*models.User, error) {
 		}
 
 		log.Printf("An error ocurred while searching for email ID %s: %s", email, err.Error())
-		return nil, fmt.Errorf("error while searching for user")
+		return nil, &models.CustomError{
+			Message: "error while searching for user",
+		}
+
 	}
 
 	return user, nil
@@ -127,7 +136,9 @@ func (repo *ChatRepo) checkIfEmailOrUsernameExists(email, username string) (bool
 		}
 
 		log.Printf("An error ocurred while searching for email ID %s: %s", email, err.Error())
-		return false, fmt.Errorf("error while searching for user")
+		return false, &models.CustomError{
+			Message: "error while searching for user",
+		}
 	}
 
 	return exists, nil
@@ -150,7 +161,6 @@ func (repo *ChatRepo) GetUserByEmail(email string) (*models.User, error) {
 		log.Printf("An error ocurred while searching for email ID %s: %s", email, err.Error())
 		return nil, &models.CustomError{
 			Message:    fmt.Sprintf("Error while searching for user: %s", email),
-			Code:       http.StatusInternalServerError,
 			AppContext: appContext,
 		}
 	}
@@ -164,7 +174,9 @@ func (repo *ChatRepo) AddMessage(chatMessage models.ChatMessage) (*int, error) {
 	tx, err := repo.db.Begin()
 	if err != nil {
 		log.Printf("An error ocurred while starting transaction: %s", err.Error())
-		return nil, fmt.Errorf("error while adding message")
+		return nil, &models.CustomError{
+			Message: "error while adding message",
+		}
 	}
 
 	defer tx.Rollback()
@@ -172,7 +184,10 @@ func (repo *ChatRepo) AddMessage(chatMessage models.ChatMessage) (*int, error) {
 	err = repo.db.QueryRow(addMessageQuery, chatMessage.UserID, chatMessage.ChatroomID, chatMessage.Message).Scan(&newId)
 	if err != nil {
 		log.Printf("An error ocurred while inserting message: %s", err.Error())
-		return nil, fmt.Errorf("error while inserting message")
+		return nil, &models.CustomError{
+			Message: "error while inserting message",
+		}
+
 	}
 
 	tx.Commit()
@@ -190,7 +205,9 @@ func (repo *ChatRepo) AddUser(user *models.User) (*int, error) {
 
 	_, err = mail.ParseAddress(user.Email)
 	if err != nil {
-		return nil, fmt.Errorf("invalid email: %s", user.Email)
+		return nil, &models.CustomError{
+			Message: fmt.Sprintf("invalid email: %s", user.Email),
+		}
 	}
 
 	exists, err := repo.checkIfEmailOrUsernameExists(user.Email, user.Username)
@@ -199,7 +216,10 @@ func (repo *ChatRepo) AddUser(user *models.User) (*int, error) {
 	}
 
 	if exists {
-		return nil, fmt.Errorf("email: %s or username: %s is already registered", user.Email, user.Username)
+		return nil, &models.CustomError{
+			Message: fmt.Sprintf("email: %s or username: %s is already registered", user.Email, user.Username),
+		}
+
 	}
 
 	var newId *int
@@ -207,16 +227,19 @@ func (repo *ChatRepo) AddUser(user *models.User) (*int, error) {
 	tx, err := repo.db.Begin()
 	if err != nil {
 		log.Printf("An error ocurred while starting transaction: %s", err.Error())
-		return nil, fmt.Errorf("error while creating user")
+		return nil, &models.CustomError{
+			Message: "error while creating user",
+		}
 	}
 
 	defer tx.Rollback()
 
 	err = repo.db.QueryRow(addUserQuery, user.Username, user.Email, user.Password).Scan(&newId)
 	if err != nil {
-
 		log.Printf("An error ocurred while creating user: %s", err.Error())
-		return nil, fmt.Errorf("error while creating user")
+		return nil, &models.CustomError{
+			Message: "error while creating user",
+		}
 	}
 
 	tx.Commit()
@@ -232,7 +255,9 @@ func (repo *ChatRepo) GetAllChatRooms() ([]*models.Chatroom, error) {
 		}
 
 		log.Printf("An error ocurred while getting all chatrooms: %s", err.Error())
-		return nil, fmt.Errorf("error while getting all chatrooms")
+		return nil, &models.CustomError{
+			Message: "error while getting all chatrooms",
+		}
 	}
 
 	response := []*models.Chatroom{}
@@ -246,7 +271,9 @@ func (repo *ChatRepo) GetAllChatRooms() ([]*models.Chatroom, error) {
 		)
 		if err != nil {
 			log.Printf("An error ocurred while getting scanning chatrooms: %s", err.Error())
-			return nil, fmt.Errorf("error while getting all chatrooms")
+			return nil, &models.CustomError{
+				Message: "error while getting scanning chatrooms",
+			}
 		}
 
 		response = append(response, chatroom)
@@ -263,7 +290,9 @@ func (repo *ChatRepo) GetChatroomMessages(chatroomId string) ([]*models.ChatMess
 		}
 
 		log.Printf("An error ocurred while getting chatroom messages: %s", err.Error())
-		return nil, fmt.Errorf("error while getting chatroom messages")
+		return nil, &models.CustomError{
+			Message: "error while getting chatroom messages",
+		}
 	}
 
 	response := []*models.ChatMessage{}
@@ -281,7 +310,9 @@ func (repo *ChatRepo) GetChatroomMessages(chatroomId string) ([]*models.ChatMess
 		)
 		if err != nil {
 			log.Printf("An error ocurred while getting scanning chatroom messages: %s", err.Error())
-			return nil, fmt.Errorf("error while getting all messages")
+			return nil, &models.CustomError{
+				Message: "error while scanning chatroom messages",
+			}
 		}
 
 		response = append(response, message)
