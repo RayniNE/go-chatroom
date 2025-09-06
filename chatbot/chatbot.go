@@ -10,14 +10,15 @@ import (
 
 	amqp "github.com/rabbitmq/amqp091-go"
 
+	"github.com/raynine/go-chatroom/interfaces"
 	"github.com/raynine/go-chatroom/models"
-	"github.com/raynine/go-chatroom/repos"
 )
 
 type chatBot struct {
 	ch   *amqp.Channel
 	Hubs map[string]*models.Hub
 	User *models.User
+	repo interfaces.DBRepo
 }
 
 type stockInformation struct {
@@ -33,7 +34,7 @@ type stockInformation struct {
 
 var ENDPOINT = "https://stooq.com/q/l/?s=%s&f=sd2t2ohlcv&h&e=csv"
 
-func NewChatBot(hubs map[string]*models.Hub, repo *repos.ChatRepo, botEmail string, ch *amqp.Channel) *chatBot {
+func NewChatBot(hubs map[string]*models.Hub, repo interfaces.DBRepo, botEmail string, ch *amqp.Channel) *chatBot {
 
 	user, err := repo.GetUserByEmail(botEmail)
 	if err != nil {
@@ -44,6 +45,7 @@ func NewChatBot(hubs map[string]*models.Hub, repo *repos.ChatRepo, botEmail stri
 		Hubs: hubs,
 		User: user,
 		ch:   ch,
+		repo: repo,
 	}
 }
 
@@ -107,6 +109,11 @@ func (cb *chatBot) ConsumeChatroomMessages() {
 		hub := cb.Hubs[msg.ChatroomID]
 
 		log.Println("Publishing message: ", msg)
+		_, err = cb.repo.AddMessage(*msg)
+		if err != nil {
+			log.Printf("An error ocurred while trying to save message from WS: %s\n", err.Error())
+			continue
+		}
 
 		hub.Broadcast <- msg
 

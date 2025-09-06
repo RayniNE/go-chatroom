@@ -7,19 +7,19 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/raynine/go-chatroom/interfaces"
 	"github.com/raynine/go-chatroom/models"
 
-	"github.com/raynine/go-chatroom/repos"
 	"github.com/raynine/go-chatroom/utils"
 )
 
 type Handler struct {
-	repo *repos.ChatRepo
+	repo interfaces.DBRepo
 	hubs map[string]*models.Hub
 	ch   *amqp.Channel
 }
 
-func NewHandler(repo *repos.ChatRepo, ch *amqp.Channel, hubs map[string]*models.Hub) *Handler {
+func NewHandler(repo interfaces.DBRepo, ch *amqp.Channel, hubs map[string]*models.Hub) *Handler {
 	return &Handler{
 		repo: repo,
 		hubs: hubs,

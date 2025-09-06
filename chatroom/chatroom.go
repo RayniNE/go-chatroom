@@ -13,6 +13,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/raynine/go-chatroom/chatbot"
 	"github.com/raynine/go-chatroom/chatroom/handlers"
+	"github.com/raynine/go-chatroom/interfaces"
 	"github.com/raynine/go-chatroom/models"
 	"github.com/raynine/go-chatroom/repos"
 	"github.com/raynine/go-chatroom/utils"
@@ -58,7 +59,7 @@ func (s *ChatroomService) Main() {
 	}
 }
 
-func (s *ChatroomService) startBroker(repo *repos.ChatRepo, botEmail string) *amqp.Channel {
+func (s *ChatroomService) startBroker(repo interfaces.DBRepo, botEmail string) *amqp.Channel {
 	conn, err := amqp.Dial(s.RABBIT_MQ_URL)
 	if err != nil {
 		log.Fatalf("An error ocurred while starting rabbit mq: %s\n", err.Error())
