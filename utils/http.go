@@ -25,14 +25,15 @@ func EncodeErrorResponse(w http.ResponseWriter, err error) {
 	if !ok {
 		statusCode = http.StatusInternalServerError
 		message = err.Error()
+	} else {
+		statusCode = errBody.Code
+		message = errBody.Message
+
 	}
 
-	if errBody.Code == INT_ZERO_VALUE {
-		errBody.Code = http.StatusInternalServerError
+	if statusCode == INT_ZERO_VALUE {
+		statusCode = http.StatusInternalServerError
 	}
-
-	statusCode = errBody.Code
-	message = errBody.Message
 
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(map[string]string{
