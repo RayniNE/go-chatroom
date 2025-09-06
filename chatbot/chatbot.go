@@ -150,8 +150,13 @@ func getStockInformation(stockCode string) (*stockInformation, error) {
 		}
 
 		if err != nil {
-			fmt.Println("Error al leer el CSV:", err)
+			fmt.Println("Error trying to read CSV:", err.Error())
 			return nil, err
+		}
+
+		if len(record) < 7 {
+			log.Println(fmt.Errorf("invalid data format received"))
+			return nil, fmt.Errorf("invalid data format received")
 		}
 
 		stockInformation.Symbol = record[0]
@@ -161,7 +166,6 @@ func getStockInformation(stockCode string) (*stockInformation, error) {
 		stockInformation.High = record[4]
 		stockInformation.Low = record[5]
 		stockInformation.Close = record[6]
-		log.Println("Stock ingo", stockInformation)
 
 	}
 
