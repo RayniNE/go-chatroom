@@ -28,6 +28,7 @@ type ChatroomService struct {
 
 var hubs = make(map[string]*models.Hub)
 
+// Entry point of the backend server. Initiates all the endpoints, DB connection and RabbitMQ broker.
 func (s *ChatroomService) Main() {
 	r := mux.NewRouter()
 
@@ -59,6 +60,7 @@ func (s *ChatroomService) Main() {
 	}
 }
 
+// Starts the RabbitMQ broker and spins up two goroutines that manages the stock and chatrooms queues.
 func (s *ChatroomService) startBroker(repo interfaces.DBRepo, botEmail string) *amqp.Channel {
 	conn, err := amqp.Dial(s.RABBIT_MQ_URL)
 	if err != nil {

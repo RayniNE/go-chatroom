@@ -56,6 +56,7 @@ const (
 	`
 )
 
+// Adds the provided chatroom to the Database. Will validate the chatroom name
 func (repo *ChatRepo) AddChatroom(chatroom *models.Chatroom) (*string, error) {
 
 	err := chatroom.Validate()
@@ -89,6 +90,7 @@ func (repo *ChatRepo) AddChatroom(chatroom *models.Chatroom) (*string, error) {
 	return newId, nil
 }
 
+// Gets the chatroom with the provided ID. ID must be an uuid string.
 func (repo *ChatRepo) GetChatroomByID(id string) (*models.Chatroom, error) {
 	chatroom := &models.Chatroom{}
 
@@ -107,6 +109,7 @@ func (repo *ChatRepo) GetChatroomByID(id string) (*models.Chatroom, error) {
 	return chatroom, nil
 }
 
+// Finds the existing user with the provided email. If no user is found, does not throw ErrNoRows error.
 func (repo *ChatRepo) FindUserByEmail(email string) (*models.User, error) {
 	user := &models.User{}
 
@@ -126,6 +129,7 @@ func (repo *ChatRepo) FindUserByEmail(email string) (*models.User, error) {
 	return user, nil
 }
 
+// Validates if there's an existing user with the provided email or username.
 func (repo *ChatRepo) checkIfEmailOrUsernameExists(email, username string) (bool, error) {
 	exists := false
 
@@ -144,6 +148,7 @@ func (repo *ChatRepo) checkIfEmailOrUsernameExists(email, username string) (bool
 	return exists, nil
 }
 
+// Gets the user with the provided email. Throws an error if the user is not found.
 func (repo *ChatRepo) GetUserByEmail(email string) (*models.User, error) {
 	appContext := "ChatRepo.GetUserByEmail"
 	user := &models.User{}
@@ -168,6 +173,7 @@ func (repo *ChatRepo) GetUserByEmail(email string) (*models.User, error) {
 	return user, nil
 }
 
+// Adds the message to the DB. Will throw errors if the provided userId or chatroomId do not exist due to foreign key constraints
 func (repo *ChatRepo) AddMessage(chatMessage models.ChatMessage) (*int, error) {
 	var newId *int
 
@@ -195,8 +201,8 @@ func (repo *ChatRepo) AddMessage(chatMessage models.ChatMessage) (*int, error) {
 	return newId, nil
 }
 
+// Adds an user. We first validate the email, username and password. Then we check if the email or password is already used.
 func (repo *ChatRepo) AddUser(user *models.User) (*int, error) {
-
 	err := user.Validate(false)
 	if err != nil {
 		log.Println(err.Error())
@@ -247,6 +253,7 @@ func (repo *ChatRepo) AddUser(user *models.User) (*int, error) {
 	return newId, nil
 }
 
+// Gets all the chatrooms in the system.
 func (repo *ChatRepo) GetAllChatRooms() ([]*models.Chatroom, error) {
 	rows, err := repo.db.Query(getAllChatRoomsQuery)
 	if err != nil {
@@ -282,6 +289,7 @@ func (repo *ChatRepo) GetAllChatRooms() ([]*models.Chatroom, error) {
 	return response, nil
 }
 
+// Gets the last 50 messages from the Chatroom. It's when a user joins a chatroom.
 func (repo *ChatRepo) GetChatroomMessages(chatroomId string) ([]*models.ChatMessage, error) {
 	rows, err := repo.db.Query(getChatroomMessagesQuery, chatroomId)
 	if err != nil {

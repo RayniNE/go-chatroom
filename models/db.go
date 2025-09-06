@@ -12,6 +12,7 @@ type User struct {
 	Password string `json:"user_password,omitempty"`
 }
 
+// Validates if the user email, username or password is valid. Will only validate the username if the user is registering.
 func (u *User) Validate(isLogin bool) error {
 	appContext := "User.Validate"
 	if u.Email == "" {
@@ -48,6 +49,7 @@ type Chatroom struct {
 	Name string `json:"chatroom_name,omitempty"`
 }
 
+// Validates if the chatroom name is valid
 func (cr *Chatroom) Validate() error {
 	if cr.Name == "" {
 		return &CustomError{
@@ -68,6 +70,7 @@ type ChatMessage struct {
 	UserName   string    `json:"chat_message_users_user_name,omitempty"`
 }
 
+// Repository created in the models/db.go to avoid circular dependency between the models and repo packages
 type ChatRepository interface {
 	GetChatroomByID(string) (*Chatroom, error)
 	FindUserByEmail(string) (*User, error)

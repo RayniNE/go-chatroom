@@ -73,6 +73,7 @@ func (handler *Handler) GetAllChatrooms(w http.ResponseWriter, r *http.Request) 
 	utils.EncodeResponse(w, data)
 }
 
+// Handles the connection of a user to the websocket. A chatroom ID is required to connect to it and send messages.
 func (handler *Handler) ConnectToChatroomWS(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 

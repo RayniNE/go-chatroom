@@ -12,6 +12,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// A client connected to a chatroom. It holds the hub(chatroom) to be able to broadcast to all the users.
+// Handles the reads and writes to the chatroom.
 type Client struct {
 	Id       int
 	UserName string
@@ -37,6 +39,10 @@ var (
 	space   = []byte{' '}
 )
 
+// Reads the messages sent in the websocket connection. The message gets formatted to a models.ChatMessage struct,
+// gets validated to see if its a command. If it is, we dont save it in the DB, broadcast it to the chatroom
+// and send it to the chatbot to retrieve the stock information and sends it into the chatroom. If it isn't, we save it
+// in the DB and broadcast it.
 func (c *Client) ReadPump() {
 	defer func() {
 		c.Hub.Unregister <- c
@@ -94,6 +100,7 @@ func (c *Client) ReadPump() {
 	}
 }
 
+// Writes all the received messages to the websockets for visualization of the clients.
 func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {

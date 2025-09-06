@@ -34,6 +34,7 @@ type stockInformation struct {
 
 var ENDPOINT = "https://stooq.com/q/l/?s=%s&f=sd2t2ohlcv&h&e=csv"
 
+// Chatbot handles the reading of the commands and the writing of the stock response message.
 func NewChatBot(hubs map[string]*models.Hub, repo interfaces.DBRepo, botEmail string, ch *amqp.Channel) *chatBot {
 
 	user, err := repo.GetUserByEmail(botEmail)
@@ -49,6 +50,8 @@ func NewChatBot(hubs map[string]*models.Hub, repo interfaces.DBRepo, botEmail st
 	}
 }
 
+// Reads messages from the stock_requests queue, then grabs the message and gives it the models.ChatMessage format, then passes it
+// to the chatroom_messages queue
 func (cb *chatBot) ConsumeStockRequests() {
 	msgs, _ := cb.ch.Consume("stock_requests", "", true, false, false, false, nil)
 	for d := range msgs {
@@ -94,6 +97,8 @@ func (cb *chatBot) ConsumeStockRequests() {
 	}
 }
 
+// Reads all the messages from the chatroom_messages queue, decodes the message to a models.ChatMessage model
+// saves it into the DB and gets broadcasted to the correct chatroom, avoiding leaking messages to others.
 func (cb *chatBot) ConsumeChatroomMessages() {
 	msgs, _ := cb.ch.Consume("chatroom_messages", "", true, false, false, false, nil)
 	for d := range msgs {

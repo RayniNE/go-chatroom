@@ -17,6 +17,7 @@ type Hub struct {
 	Unregister chan *Client
 }
 
+// A hub is considered a chatroom. It handles the logic to broadcast the messages to all the clients connected to itself
 func NewHub(chatroomId string, repo ChatRepository) *Hub {
 	return &Hub{
 		mu:         sync.RWMutex{},
@@ -29,6 +30,10 @@ func NewHub(chatroomId string, repo ChatRepository) *Hub {
 	}
 }
 
+/*
+Run method is a goroutine that gets launched when the first user connects to the chatroom.
+Manages all the clients register, unregister and broadcast logic
+*/
 func (h *Hub) Run() {
 	for {
 		select {
