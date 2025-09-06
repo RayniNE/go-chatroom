@@ -76,10 +76,6 @@ func (repo *ChatRepo) AddChatroom(chatroom *models.Chatroom) (*string, error) {
 
 	err = repo.db.QueryRow(addChatroomQuery, chatroom.Name).Scan(&newId)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-
 		log.Printf("An error ocurred while creating chatroom: %s", err.Error())
 		return nil, fmt.Errorf("error while creating chatroom")
 	}
@@ -218,9 +214,6 @@ func (repo *ChatRepo) AddUser(user *models.User) (*int, error) {
 
 	err = repo.db.QueryRow(addUserQuery, user.Username, user.Email, user.Password).Scan(&newId)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
 
 		log.Printf("An error ocurred while creating user: %s", err.Error())
 		return nil, fmt.Errorf("error while creating user")

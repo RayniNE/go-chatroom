@@ -312,11 +312,64 @@ func TestAddUser(t *testing.T) {
 
 		mock.ExpectQuery(addUserQuery).WithArgs(user.Username, user.Email, user.Password).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 
-		mock.ExpectRollback()
+		mock.ExpectCommit()
 
 		id, err := repo.AddUser(user)
 		assert.NoError(t, err)
 		assert.Equal(t, 1, *id)
+	})
+
+}
+
+func TestAddChatroom(t *testing.T) {
+	db, mock, repo := setupTestDB(t)
+	defer db.Close()
+
+	chatroom := &models.Chatroom{
+		Name: "THEBESTCHATROOM",
+	}
+
+	t.Run("Invalid user email", func(t *testing.T) {
+		invalidUser := &models.User{
+			Username: "Raytest",
+			Password: "password123",
+		}
+
+		id, err := repo.AddUser(invalidUser)
+		assert.Contains(t, err.Error(), "Invalid email")
+		assert.Nil(t, id)
+	})
+
+	t.Run("Invalid chatroom name", func(t *testing.T) {
+		invalidChatroom := &models.Chatroom{}
+
+		id, err := repo.AddChatroom(invalidChatroom)
+		assert.Contains(t, err.Error(), "Invalid chatroom name")
+		assert.Nil(t, id)
+	})
+
+	t.Run("Error while inserting chatroom", func(t *testing.T) {
+		mock.ExpectBegin()
+
+		mock.ExpectQuery(addChatroomQuery).WithArgs(chatroom.Name).WillReturnError(sql.ErrConnDone)
+
+		mock.ExpectRollback()
+
+		id, err := repo.AddChatroom(chatroom)
+		assert.Contains(t, err.Error(), "error while creating chatroom")
+		assert.Nil(t, id)
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		mock.ExpectBegin()
+
+		mock.ExpectQuery(addChatroomQuery).WithArgs(chatroom.Name).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(chatRoomId))
+
+		mock.ExpectCommit()
+
+		id, err := repo.AddChatroom(chatroom)
+		assert.NoError(t, err)
+		assert.Equal(t, chatRoomId, *id)
 	})
 
 }
