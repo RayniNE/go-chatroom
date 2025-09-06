@@ -106,6 +106,7 @@ func (service *ChatroomService) protectedEndpoints(router *mux.Router, handler *
 	subRouter := router.PathPrefix("/").Subrouter()
 	subRouter.Use(utils.AuthMiddleware)
 
+	subRouter.HandleFunc("/chatrooms/", handler.AddChatroom).Methods("POST")
 	subRouter.HandleFunc("/chatrooms", handler.GetAllChatrooms).Methods("GET")
 	subRouter.HandleFunc("/ws/chatroom/{id}", handler.ConnectToChatroomWS)
 }

@@ -32,6 +32,32 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
+func (handler *Handler) AddChatroom(w http.ResponseWriter, r *http.Request) {
+	chatroom := &models.Chatroom{}
+
+	err := utils.DecodePayload(r, &chatroom)
+	if err != nil {
+		utils.EncodeErrorResponse(w, &models.CustomError{
+			Message: "Invalid chatroom",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	id, err := handler.repo.AddChatroom(chatroom)
+	if err != nil {
+		utils.EncodeErrorResponse(w, err)
+		return
+	}
+
+	utils.EncodeResponse(w, models.ServerResponse{
+		Code: http.StatusCreated,
+		Data: map[string]any{
+			"chatroom_id": id,
+		},
+	})
+}
+
 func (handler *Handler) GetAllChatrooms(w http.ResponseWriter, r *http.Request) {
 	response, err := handler.repo.GetAllChatRooms()
 	if err != nil {

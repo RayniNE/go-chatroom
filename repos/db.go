@@ -35,6 +35,11 @@ const (
 				public.users(id, username, email, password)
 			VALUES (default, $1, $2, $3) returning id
 		`
+	addChatroomQuery = `
+		INSERT INTO
+			public.chatrooms(id, name)
+		VALUES(default, $1) returning id
+	`
 	getAllChatRoomsQuery = `
 			SELECT * FROM
 				public.chatrooms
@@ -50,6 +55,39 @@ const (
 			LIMIT 50
 	`
 )
+
+func (repo *ChatRepo) AddChatroom(chatroom *models.Chatroom) (*string, error) {
+
+	err := chatroom.Validate()
+	if err != nil {
+		log.Println(err.Error())
+		return nil, err
+	}
+
+	var newId *string
+
+	tx, err := repo.db.Begin()
+	if err != nil {
+		log.Printf("An error ocurred while starting transaction: %s", err.Error())
+		return nil, fmt.Errorf("error while creating chatroom")
+	}
+
+	defer tx.Rollback()
+
+	err = repo.db.QueryRow(addChatroomQuery, chatroom.Name).Scan(&newId)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+
+		log.Printf("An error ocurred while creating chatroom: %s", err.Error())
+		return nil, fmt.Errorf("error while creating chatroom")
+	}
+
+	tx.Commit()
+
+	return newId, nil
+}
 
 func (repo *ChatRepo) GetChatroomByID(id string) (*models.Chatroom, error) {
 	chatroom := &models.Chatroom{}

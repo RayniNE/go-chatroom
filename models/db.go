@@ -48,6 +48,17 @@ type Chatroom struct {
 	Name string `json:"chatroom_name,omitempty"`
 }
 
+func (cr *Chatroom) Validate() error {
+	if cr.Name == "" {
+		return &CustomError{
+			Message: "Invalid chatroom name",
+			Code:    http.StatusBadRequest,
+		}
+	}
+
+	return nil
+}
+
 type ChatMessage struct {
 	Id         int       `json:"chat_message_id,omitempty"`
 	UserID     int       `json:"chat_message_user_id,omitempty"`

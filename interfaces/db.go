@@ -10,4 +10,5 @@ type DBRepo interface {
 	AddUser(*models.User) (*int, error)
 	GetAllChatRooms() ([]*models.Chatroom, error)
 	GetChatroomMessages(string) ([]*models.ChatMessage, error)
+	AddChatroom(*models.Chatroom) (*string, error)
 }
