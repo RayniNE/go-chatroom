@@ -39,6 +39,7 @@ make migration_up
 
 3. **Run Application**
 ```bash
+go mod download
 make run
 ```
 
