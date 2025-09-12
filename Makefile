@@ -14,3 +14,7 @@ run_test:
 	@go test -count=1 -cover ./...
 run_test_verbose:
 	@go test -count=1 -v ./...
+build_image:
+	docker build -t chatroom-go .
+start_image:
+	docker run --env-file .env -p 8080:8080 -t chatroom-go

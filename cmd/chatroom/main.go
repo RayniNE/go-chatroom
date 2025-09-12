@@ -9,6 +9,13 @@ import (
 )
 
 func init() {
+	environment := os.Getenv("ENVIRONMENT")
+	if environment != "" && environment == "prod" {
+		log.Println("Service started in PROD environment")
+		return
+	}
+
+	log.Println("Service started in DEV environment")
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")

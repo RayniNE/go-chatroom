@@ -13,59 +13,89 @@ A real-time chat application built with Go, featuring WebSocket communication, P
 ## Tech Stack
 
 - **Backend**: Go 1.19+, Makefile
-- **Database**: PostgreSQL - Hosted using Railway
-- **Message Broker**: RabbitMQ - Hosted using Railway
+- **Database**: PostgreSQL - Currently hosted using Railway
+- **Message Broker**: RabbitMQ - Currently hosted using Railway
 - **WebSocket**: Gorilla WebSocket
 - **Router**: Gorilla Mux
 
 ## Setup & Installation
 
-1. **Set Environment Variables**
+1. **Set Environment**
 
-Create `.env` file:
+Use the provided .env file and store it in the root of the repository. If no .env is found, feel free to reach out and i can provide it to you.
+The .env has the following ENVs:
+
 ```env
-PORT=8080
+# These are just example values.
+PORT=PORT
 SECRET_KEY=SECRET_KEY
-DB_URL=postgres://username:password@localhost:5432/chatroom?sslmode=disable
-RABBIT_MQ_URL=amqp://guest:guest@localhost:5672/
-CHATBOT_EMAIL=chatbot@example.com
+DATABASE_URL=DATABASE_URL
+RABBIT_MQ_URL=RABBIT_MQ_URL
+CHATBOT_EMAIL=CHATBOT_EMAIL
+```
+
+Install Go and Makefile if you're planning to run it directly with Go. Then run the following command in the root of the repository.
+
+```bash
+go mod download
 ```
 
 2. **Database Setup**
+
+This step is optional since the DB is hosted in Railway with the necessary data
+
 ```bash
 make install_migration
 make migration_up
 ```
 
-3. **Run Application**
+### Start the application
+
+To run the application manually please follow the Setup & Installation section. Then write the following command in the CMD
+
 ```bash
-go mod download
 make run
+```
+
+A less troublesome way to start the application is by using Docker. In the root of the repository run the following commands:
+
+```bash
+docker build -t chatroom-go .
+docker run --env-file .env -p 8080:8080 chatroom-go
+```
+
+An even less troublesome way to start the application is by using the Makefile commands:
+
+```bash
+make build_image
+make start_image
 ```
 
 ## API Documentation
 
 ### Public Endpoints
 
-| Method | Endpoint | Description | Request Body |
-|--------|----------|-------------|--------------|
-| POST | `/user/` | Register user | `{"email": "user@example.com", "password": "secret"}` |
-| POST | `/login` | Login user | `{"email": "user@example.com", "password": "secret"}` |
+| Method | Endpoint | Description   | Request Body                                                                                           |
+| ------ | -------- | ------------- | ------------------------------------------------------------------------------------------------------ |
+| POST   | `/user/` | Register user | `{"user_email": "user@example.com", "user_password": "secret", "user_user_name": "user_name_example"}` |
+| POST   | `/login` | Login user    | `{"user_email": "user@example.com", "user_password": "secret"}`                                        |
 
 ### Protected Endpoints
 
-| Method | Endpoint | Description | Authentication | Request Body | Response |
-|--------|----------|-------------|----------------|--------------|-----------|
-| POST | `/chatrooms/` | Create chatroom | Required | `{"chatroom_name": "My Chatroom"}` | `{"chatroom_id": "uuid"}` |
-| GET | `/chatrooms` | List chatrooms | Required | - | `[{"chatroom_id": "uuid", "chatroom_name": "My Chatroom"}]` |
-| GET | `/ws/chatroom/{id}` | WebSocket connection | Required | - | WebSocket Connection |
+| Method | Endpoint            | Description          | Authentication | Request Body                       | Response                                                    |
+| ------ | ------------------- | -------------------- | -------------- | ---------------------------------- | ----------------------------------------------------------- |
+| POST   | `/chatrooms/`       | Create chatroom      | Required       | `{"chatroom_name": "My Chatroom"}` | `{"chatroom_id": "uuid"}`                                   |
+| GET    | `/chatrooms`        | List chatrooms       | Required       | -                                  | `[{"chatroom_id": "uuid", "chatroom_name": "My Chatroom"}]` |
+| GET    | `/ws/chatroom/{id}` | WebSocket connection | Required       | -                                  | WebSocket Connection                                        |
 
 **Note**: For protected endpoints, include the JWT token in the request header:
+
 ```
 Authorization: Bearer <your_token>
 ```
 
-Example Response for `/chatrooms`:
+Example Response for `http://localhost:8080/chatrooms`:
+
 ```json
 [
   {
@@ -76,6 +106,7 @@ Example Response for `/chatrooms`:
 ```
 
 Example Request for creating a chatroom:
+
 ```json
 POST /chatrooms/
 {
@@ -84,13 +115,15 @@ POST /chatrooms/
 ```
 
 Example Response:
+
 ```json
 {
-    "chatroom_id": "uuid-string"
+  "chatroom_id": "uuid-string"
 }
 ```
 
 ### Running Tests
+
 ```bash
 # Run all tests with verbose output
 make run_test_verbose
@@ -100,6 +133,7 @@ make run_test
 ```
 
 ### Project Structure
+
 ```
 chatroom/
 ├── .env                # Environment variables
